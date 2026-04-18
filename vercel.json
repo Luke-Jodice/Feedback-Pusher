@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/github/Example-Implementation.index.js" }
+    { "source": "/(.*)", "destination": "/index.js" }
   ]
 }

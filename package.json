@@ -1,8 +1,12 @@
 {
   "name": "feedback-component",
-  "module": "github/index.js",
+  "module": "index.js",
   "type": "module",
   "private": true,
+  "scripts": {
+    "start": "bun index.js",
+    "dev": "bun --watch index.js"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
