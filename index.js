@@ -12,15 +12,17 @@ const app = new Hono();
 //   allowHeaders: ['Content-Type'],
 // }));
 
-// Serve landing.html at the root endpoint
+// Serve index.html at the root endpoint
 app.get('/', async (c) => {
   try {
-    const html = await fs.readFile('./landing.html', 'utf-8');
+    const html = await fs.readFile('./index.html', 'utf-8');
     return c.html(html);
   } catch (err) {
     return c.text('Landing page not found', 404);
   }
 });
+
+export default app;
 
 //Commenting out Endpoint, as would be part of what will eventually be what is added in the folder for project
 
@@ -72,9 +74,4 @@ app.get('/', async (c) => {
 //     return c.json({ error: 'Internal Server Error' }, 500);
 //   }
 // });
-
-export default {
-  port: 3000,
-  fetch: app.fetch,
-};
 
