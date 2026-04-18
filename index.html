@@ -860,8 +860,8 @@
       </div>
       <div class="feature reveal">
         <div class="feature-icon">🎯</div>
-        <h3>Generic by design</h3>
-        <p>One backend can serve any repo — <code>POST /feedback/:owner/:repo</code> — reuse across projects.</p>
+        <h3>Standard payload contract</h3>
+        <p>One frontend format for all backends. Same modal, same payload — your server decides the destination (GitHub, Jira, Quickbase, etc.).</p>
       </div>
       <div class="feature reveal">
         <div class="feature-icon">🔒</div>
@@ -903,15 +903,16 @@
       <div class="step reveal">
         <div class="step-num">2</div>
         <div>
-          <h3>Collect what matters</h3>
-          <p>A clean modal gathers a title, description, type (bug, idea, feedback), and optional email — plus browser metadata you didn't have to ask for.</p>
+          <h3>Standard feedback payload</h3>
+          <p>Modal collects title, type (bug, idea, feedback), description, and optional email. Browser metadata is auto-captured. This is the <strong>same payload format</strong> for GitHub, Jira, Quickbase, or any backend.</p>
         </div>
         <div class="step-visual">
 <span class="k">{</span>
-  <span class="t">title</span>: <span class="s">"Save button broken on /settings"</span>,
+  <span class="t">title</span>: <span class="s">"Save button broken"</span>,
   <span class="t">type</span>:  <span class="s">"bug"</span>,
+  <span class="t">description</span>: <span class="s">"..."</span>,
   <span class="t">email</span>: <span class="s">"user@acme.com"</span>,
-  <span class="t">meta</span>:  <span class="s">"Chrome 124 · macOS · 1440×900"</span>
+  <span class="t">metadata</span>: <span class="s">{ url, userAgent, ... }</span>
 <span class="k">}</span></div>
       </div>
 
@@ -919,31 +920,31 @@
         <div class="step-num">3</div>
         <div>
           <h3>POST to your backend</h3>
-          <p>The component sends a JSON payload to <code>/feedback/:owner/:repo</code>. A tiny Hono server validates it and forwards to GitHub.</p>
+          <p>The component sends the standard payload to your endpoint. Your backend validates it and transforms it for your target system (GitHub Issues, Jira, Quickbase, etc.).</p>
         </div>
         <div class="step-visual">
-<span class="t">POST</span> /feedback/acme/web-app
+<span class="t">POST</span> /feedback
 <span class="c">content-type: application/json</span>
 
 <span class="k">{</span>
   <span class="t">"title"</span>: <span class="s">"..."</span>,
-  <span class="t">"body"</span>:  <span class="s">"..."</span>,
-  <span class="t">"labels"</span>: [<span class="s">"feedback"</span>]
+  <span class="t">"type"</span>: <span class="s">"bug"</span>,
+  <span class="t">"description"</span>: <span class="s">"..."</span>,
+  <span class="t">"metadata"</span>: <span class="s">{...}</span>
 <span class="k">}</span></div>
       </div>
 
       <div class="step reveal">
         <div class="step-num">4</div>
         <div>
-          <h3>A new Issue appears</h3>
-          <p>Your backend uses its <code>GITHUB_API_KEY</code> to create the Issue in the target repo — labeled, formatted, and ready to triage.</p>
+          <h3>Destination transformation</h3>
+          <p>Your backend transforms the standard payload into your target system's format. Create GitHub Issues, Jira tickets, Quickbase records, or implement any other destination.</p>
         </div>
         <div class="step-visual">
-<span class="c">✓ Issue #142 created in acme/web-app</span>
-<span class="c">✓ Labeled: feedback, bug</span>
-<span class="c">✓ Linked in user email (optional)</span>
-&nbsp;
-<span class="t">github.com</span>/acme/web-app/<span class="t">issues</span>/142</div>
+<span class="c">✓ GitHub:   Issue created & labeled</span>
+<span class="c">✓ Jira:     Ticket assigned to project</span>
+<span class="c">✓ Quickbase: Record inserted</span>
+<span class="c">✓ Custom:   Your own adapter</span></div>
       </div>
     </div>
   </div>
@@ -967,35 +968,47 @@
     <div class="code-block reveal">
       <div class="code-head">
         <div class="code-tabs">
-          <div class="code-tab active" data-tab="config">config.js</div>
+          <div class="code-tab active" data-tab="config">setup.js</div>
           <div class="code-tab" data-tab="install">terminal</div>
           <div class="code-tab" data-tab="env">.env</div>
         </div>
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
       </div>
       <div class="code-body">
-<pre id="code-config"><span class="tok-c">// generic-component.html — drop in and configure</span>
-<span class="tok-k">const</span> CONFIG = {
-  <span class="tok-t">owner</span>:    <span class="tok-s">'your-github-username'</span>,
-  <span class="tok-t">repo</span>:     <span class="tok-s">'your-repo-name'</span>,
-  <span class="tok-t">endpoint</span>: <span class="tok-s">'/feedback'</span>,
-};
+<pre id="code-config"><span class="tok-c">// Import the standard feedback client</span>
+<span class="tok-k">import</span> FeedbackClient <span class="tok-k">from</span> <span class="tok-s">'./implementations/General/feedback-api.js'</span>;
 
-<span class="tok-c">// that's it. The modal will POST to:</span>
-<span class="tok-c">// /feedback/your-github-username/your-repo-name</span></pre>
-<pre id="code-install" style="display:none"><span class="tok-c"># 1. clone &amp; install</span>
+<span class="tok-k">const</span> feedback = <span class="tok-k">new</span> FeedbackClient({
+  <span class="tok-t">endpoint</span>: <span class="tok-s">'/feedback'</span>,
+  <span class="tok-t">includeMetadata</span>: <span class="tok-k">true</span>
+});
+
+<span class="tok-c">// Submit feedback — works with any backend adapter</span>
+<span class="tok-k">await</span> feedback.submit({
+  <span class="tok-t">title</span>: <span class="tok-s">'Save button broken'</span>,
+  <span class="tok-t">type</span>: <span class="tok-s">'bug'</span>,
+  <span class="tok-t">description</span>: <span class="tok-s">'Fails on checkout page'</span>,
+  <span class="tok-t">email</span>: <span class="tok-s">'user@acme.com'</span>
+});</pre>
+<pre id="code-install" style="display:none"><span class="tok-c"># 1. clone repo</span>
 <span class="tok-p">$</span> git clone https://github.com/luke-jodice/feedback-pusher
 <span class="tok-p">$</span> cd feedback-pusher
+
+<span class="tok-c"># 2. install dependencies</span>
 <span class="tok-p">$</span> bun install
 
-<span class="tok-c"># 2. run the server</span>
-<span class="tok-p">$</span> bun github/generic-index.js
+<span class="tok-c"># 3. run your chosen backend</span>
+<span class="tok-p">$</span> bun implementations/github/index.js
 <span class="tok-c">→ listening on :3000</span></pre>
-<pre id="code-env" style="display:none"><span class="tok-c"># .env</span>
+<pre id="code-env" style="display:none"><span class="tok-c"># .env — depends on your backend</span>
+
+<span class="tok-c"># For GitHub adapter:</span>
 <span class="tok-t">GITHUB_API_KEY</span>=<span class="tok-s">ghp_xxxxxxxxxxxxxxxxxxxx</span>
 
-<span class="tok-c"># Needs `repo` scope on your PAT</span>
-<span class="tok-c"># The key stays server-side — never shipped to the browser</span></pre>
+<span class="tok-c"># For Quickbase adapter:</span>
+<span class="tok-t">QB_REALM</span>=<span class="tok-s">company.quickbase.com</span>
+<span class="tok-t">QB_APP_ID</span>=<span class="tok-s">your_app_id</span>
+<span class="tok-t">QB_API_TOKEN</span>=<span class="tok-s">your_token</span></pre>
       </div>
     </div>
   </div>
@@ -1110,6 +1123,7 @@
   </div>
 </div>
 
+<script src="./implementations/General/feedback-api.js"></script>
 <script>
   // Reveal on scroll
   const io = new IntersectionObserver((entries) => {
@@ -1144,10 +1158,16 @@
     });
   }
 
-  // Demo modal
+  // Demo modal with real feedback submission
   const overlay = document.getElementById('demoOverlay');
   const form = document.getElementById('demoForm');
   const success = document.getElementById('demoSuccess');
+
+  // Initialize feedback client (in demo, this won't actually send anywhere)
+  const feedbackClient = new FeedbackClient({
+    endpoint: '/feedback',  // Backend would handle this
+    includeMetadata: true
+  });
 
   function openDemo() {
     overlay.classList.add('open');
@@ -1155,13 +1175,31 @@
     success.classList.remove('show');
     setTimeout(() => document.getElementById('f_title').focus(), 150);
   }
+
   function closeDemo() {
     overlay.classList.remove('open');
   }
-  function submitDemo() {
-    form.style.display = 'none';
-    success.classList.add('show');
+
+  async function submitDemo() {
+    const payload = {
+      title: document.getElementById('f_title').value.trim(),
+      type: document.getElementById('f_type').value.toLowerCase(),
+      description: document.getElementById('f_desc').value.trim(),
+      email: document.getElementById('f_email').value.trim() || undefined
+    };
+
+    // In a real scenario, this would submit to your backend
+    // which would then transform it for GitHub, Jira, Quickbase, etc.
+    try {
+      // await feedbackClient.submit(payload);
+      // For demo, we just show the success screen
+      form.style.display = 'none';
+      success.classList.add('show');
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
   }
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && overlay.classList.contains('open')) closeDemo();
   });

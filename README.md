@@ -1,42 +1,51 @@
-# Feedback Tool
+# Feedback Pusher
 
-This repository is a tool designed to assist with the creation and use of feedback across different places. It provides a modular feedback component that can be easily integrated into any web application to collect user feedback, bug reports, or feature requests and push them directly to various destinations. 
+A lightweight, backend-agnostic feedback collection system. Drop a modal into any web app to collect user feedback, bug reports, or feature requests — then route them to GitHub Issues, Jira, Quickbase, or your own destination.
 
-Currently you are able to push feedback to GitHub Repos using Issues.
+The frontend uses a **standard feedback payload** that any backend adapter can consume and transform for its target system. No destination-specific code in the browser.
 
-I am currently in the process of creating example components for the following integrations to helep with future projects that I am looking to setup:
-- Quickbase
-- Jira
+**Currently shipping:**
+- ✓ GitHub Issues
+- 🚧 Jira (in progress)
+- 🚧 Quickbase (in progress)
 
 ## Features
 
 - **Ready-to-use Feedback Modal:** A pre-styled, accessible modal component for collecting user input.
-- **Generic GitHub Integration:** Easily target any repository by owner and name.
-- **Flexible & Extendable:** Designed to be adapted for different feedback destinations.
+- **Backend-Agnostic:** Universal frontend, pluggable backends. Same payload format for GitHub, Jira, Quickbase, or custom destinations.
+- **Standard Payload Contract:** All backends accept the same feedback format. Your backend decides where it goes.
 - **Lightweight Backend:** Built with [Hono](https://hono.dev/) for high performance and easy deployment.
+- **Zero browser dependencies:** Works with any frontend stack — React, Vue, Svelte, or vanilla JS.
 
 ## Project Structure
 
-- `github/generic-index.js`: **(Recommended)** A generic backend server that accepts `:owner` and `:repo` parameters.
-- `github/generic-component.html`: **(Recommended)** A generic frontend component with a simple configuration object.
-- `github/index.js`: A legacy implementation tied to a specific user.
-- `github/component.html`: A legacy frontend implementation.
-- `styles.css`: Base styling for the feedback component.
+```
+.
+├── index.html                          # Landing page & live demo
+├── implementations/
+│   ├── General/
+│   │   ├── feedback-api.js            # Standard feedback client (browser)
+│   │   └── README.md                  # Payload spec & integration guide
+│   ├── github/
+│   │   ├── index.js                   # GitHub backend adapter
+│   │   ├── component.html             # Example HTML integration
+│   │   └── package.json
+│   ├── Jira/
+│   │   ├── create-issue-boilerplate.js
+│   │   └── (in progress)
+│   └── Quickbase/
+│       ├── quickbaseClient.js
+│       ├── example.js
+│       └── README.md
+└── package.json
+```
 
-## Setup
+## Quick Start
 
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (recommended) or Node.js
-- A GitHub Personal Access Token with `repo` scope.
-
-### Environment Variables
-
-Create a `.env` file in the root directory:
-
-```env
-GITHUB_API_KEY=your_github_personal_access_token
-```
+- A GitHub Personal Access Token with `repo` scope (for GitHub backend)
 
 ### Installation
 
@@ -44,51 +53,107 @@ GITHUB_API_KEY=your_github_personal_access_token
 bun install
 ```
 
-## Usage (Generic Version)
+### 1. Choose Your Backend
 
-### 1. Start the Server
-
-Run the generic backend server:
+Start the backend for your target system. Example with GitHub:
 
 ```bash
-bun github/generic-index.js
+bun implementations/github/index.js
 ```
 
-### 2. Configure the Component
+The server will listen on `:3000` by default.
 
-Open `github/generic-component.html` and update the `CONFIG` object with your target repository details:
+### 2. Add Environment Variables
+
+Create a `.env` file in the root with your backend credentials:
+
+```env
+# GitHub backend
+GITHUB_API_KEY=ghp_xxxxxxxxxxxxxxxxxxxx
+
+# Or Quickbase backend
+QB_REALM=company.quickbase.com
+QB_APP_ID=your_app_id
+QB_API_TOKEN=your_token
+```
+
+### 3. Integrate the Frontend
+
+Use the standard feedback client in your app:
 
 ```javascript
-const CONFIG = {
-    owner: 'YOUR_GITHUB_USERNAME',
-    repo: 'YOUR_REPO_NAME',
-    endpoint: '/feedback'
-};
+import FeedbackClient from './implementations/General/feedback-api.js';
+
+const feedback = new FeedbackClient({
+  endpoint: '/feedback',
+  includeMetadata: true  // Auto-capture browser info
+});
+
+// Submit feedback from anywhere
+await feedback.submit({
+  title: 'Save button broken',
+  type: 'bug',
+  description: 'Fails on checkout page',
+  email: 'user@example.com'
+});
 ```
 
-### 3. Integrate
+## Standard Payload Format
 
-Include the component in your project. The component will now dynamically send feedback to:
-`POST /feedback/:owner/:repo`
+All backends accept this structure:
 
-## Payload Format
-
-The backend expects the following JSON payload:
-
-```json
+```javascript
 {
-  "title": "Feedback Title",
-  "body": "Feedback Description and metadata",
-  "labels": ["feedback"]
+  title: string,                    // Required. Short summary
+  type: 'bug' | 'idea' | 'feedback', // Required. Category
+  description: string,              // Required. Detailed explanation
+  email?: string,                   // Optional. User contact info
+  metadata?: {                      // Optional. Auto-captured browser data
+    url?: string,                   // Page origin
+    userAgent?: string,             // Browser info
+    timestamp?: string,             // ISO 8601
+    viewport?: string,              // Resolution
+    custom?: object                 // Your custom fields
+  }
 }
 ```
 
-## How it Works
+## How It Works
 
-1. **User Interaction:** The user clicks the "See a Bug?" button.
-2. **Data Collection:** A modal opens for input (Title, Description, Type, Email).
-3. **Backend Processing:** The data is sent to the Hono backend via the generic route.
-4. **Issue Creation:** The backend uses the GitHub API to create an issue in the specified repository using your `GITHUB_API_KEY`.
+1. **User submits feedback** via the modal (or custom form)
+2. **Standard payload** is POSTed to your backend endpoint
+3. **Backend adapter** (GitHub, Jira, Quickbase, etc.) receives the payload
+4. **Transformation** happens server-side into target system format
+5. **Issue/Ticket/Record** is created with appropriate metadata
+
+```
+Browser ──POST /feedback──> Backend Adapter
+                               ↓
+                          Transform payload
+                               ↓
+                         Create GitHub Issue
+                         Create Jira Ticket
+                         Create QB Record
+                         (or custom destination)
+```
+
+## Using Different Backends
+
+### GitHub
+See `/implementations/github/` for a complete example that creates issues in any repo.
+
+### Jira
+See `/implementations/Jira/` for Jira cloud integration (in progress).
+
+### Quickbase
+See `/implementations/Quickbase/` for Quickbase record insertion (in progress).
+
+### Custom Backend
+Create your own adapter that accepts the standard payload and transforms it for your destination.
+
+## View the Demo
+
+Open `index.html` in a browser to see the landing page and live demo modal (demo mode doesn't submit anywhere).
 
 ---
 *Assisting with the flow of feedback from your users to your development workflow.*
